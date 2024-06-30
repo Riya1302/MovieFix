@@ -1,9 +1,14 @@
 import React from 'react';
 import {View, Text, Image, StyleSheet, Dimensions} from 'react-native';
+import {MovieData} from '../HomeScreen.interface';
 
 const {width} = Dimensions.get('window');
 
-const MovieCard = ({movie}) => {
+type MovieCardProps = {
+  movie: MovieData;
+};
+
+const MovieCard = ({movie}: MovieCardProps) => {
   return (
     <View style={styles.card}>
       <Image

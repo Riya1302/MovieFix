@@ -6,8 +6,19 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import {Genres} from '../HomeScreen.interface';
 
-const GenreFilter = ({genres, selectedGenres, onSelectGenre}) => (
+type GenreFilterProps = {
+  genres: Genres[];
+  selectedGenres: string[];
+  onSelectGenre: (genreId: string) => void;
+};
+
+const GenreFilter = ({
+  genres,
+  selectedGenres,
+  onSelectGenre,
+}: GenreFilterProps) => (
   <View style={styles.container}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <TouchableOpacity
@@ -30,13 +41,15 @@ const GenreFilter = ({genres, selectedGenres, onSelectGenre}) => (
           key={genre.id}
           style={[
             styles.genreButton,
-            selectedGenres.includes(genre.id) && styles.selectedGenreButton,
+            selectedGenres.includes(genre.id.toString()) &&
+              styles.selectedGenreButton,
           ]}
-          onPress={() => onSelectGenre(genre.id)}>
+          onPress={() => onSelectGenre(genre.id.toString())}>
           <Text
             style={[
               styles.genreText,
-              selectedGenres.includes(genre.id) && styles.selectedGenreText,
+              selectedGenres.includes(genre.id.toString()) &&
+                styles.selectedGenreText,
             ]}>
             {genre.name}
           </Text>

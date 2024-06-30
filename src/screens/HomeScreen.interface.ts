@@ -15,3 +15,20 @@ export interface MovieData {
   vote_average: number;
   vote_count: number;
 }
+
+export interface ApiData {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: MovieData[];
+}
+
+export interface Genres {
+  id: number;
+  name: string;
+}
+
+export interface MovieSections {
+  year: number;
+  data: MovieData[];
+}
