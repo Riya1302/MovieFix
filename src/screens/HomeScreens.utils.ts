@@ -17,3 +17,11 @@ export const fetchGenres = async () => {
   );
   return response.data;
 };
+
+export const searchMovies = async (query: string) => {
+  const url = `${BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(
+    query,
+  )}`;
+  const response = await axios.get(url);
+  return response.data;
+};

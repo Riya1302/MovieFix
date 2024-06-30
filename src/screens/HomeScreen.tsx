@@ -7,10 +7,13 @@ import {
   StyleSheet,
   SectionListData,
   SectionListRenderItemInfo,
+  TextInput,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
 import MovieCard from './components/MovieCard';
 import GenreFilter from './components/GenreFilter';
-import {fetchMovies, fetchGenres} from './HomeScreens.utils';
+import {fetchMovies, fetchGenres, searchMovies} from './HomeScreens.utils';
 import {
   ApiData,
   Genres,
@@ -25,10 +28,13 @@ const HomeScreen = () => {
   const [sections, setSections] = useState<MovieSections[]>([]);
   const [genresLoaded, setGenresLoaded] = useState(false);
   const [currentYear, setCurrentYear] = useState(2012);
-  const [endOfList, setEndOfList] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   const loadMovies = async (append = false, year = 2012) => {
-    if (loading) return;
+    if (loading) {
+      return;
+    }
     setLoading(true);
     const genreQuery =
       selectedGenres.length > 0 ? selectedGenres.join(',') : null;
@@ -76,16 +82,6 @@ const HomeScreen = () => {
 
         return updatedSections.sort((a, b) => a.year - b.year);
       });
-
-      if (year >= 2024) {
-        setEndOfList(true);
-      } else {
-        setEndOfList(false);
-      }
-
-      if (!append) {
-        setCurrentYear(year);
-      }
     } catch (error) {
       console.error('Error fetching movies:', error);
     }
@@ -94,20 +90,22 @@ const HomeScreen = () => {
 
   const handleLoadMore = useCallback(
     (direction: string) => {
-      if (loading) return;
+      if (loading) {
+        return;
+      }
       const firstYear = sections.length > 0 ? sections[0].year : 2012;
       const lastYear =
         sections.length > 0 ? sections[sections.length - 1].year : 2012;
       const newYear = direction === 'up' ? firstYear - 1 : lastYear + 1;
 
       if (newYear < 1888 || newYear > 2024) {
-        setEndOfList(true);
         return;
       }
 
       setCurrentYear(newYear);
       loadMovies(true, newYear);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sections, selectedGenres, loading],
   );
 
@@ -121,6 +119,33 @@ const HomeScreen = () => {
     }
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const movieData: ApiData = await searchMovies(searchQuery);
+      const moviesWithGenres = movieData.results.map(movie => ({
+        ...movie,
+        genre_names: movie.genre_ids.map(
+          id => genres.find(g => g.id === id)?.name || '',
+        ),
+      }));
+
+      const sortedMoviesWithGenres = moviesWithGenres.sort(
+        (a, b) => b.popularity - a.popularity,
+      );
+
+      setSections([
+        {year: sortedMoviesWithGenres.length, data: sortedMoviesWithGenres},
+      ]);
+    } catch (error) {
+      console.error('Error searching movies:', error);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     loadGenres();
   }, []);
@@ -129,12 +154,12 @@ const HomeScreen = () => {
     if (genresLoaded) {
       loadMovies(false, currentYear);
     }
-  }, [genresLoaded, selectedGenres, currentYear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genresLoaded, selectedGenres]);
 
   const handleSelectGenre = (genreId: string) => {
     setSelectedGenres(genreId === 'all' ? [] : [genreId]);
     setSections([]);
-    setEndOfList(false);
     setCurrentYear(2012);
     loadMovies(false, 2012);
   };
@@ -172,7 +197,27 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>MOVIEFIX</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>MOVIEFIX</Text>
+        <TouchableOpacity onPress={() => setIsSearchVisible(!isSearchVisible)}>
+          <Image
+            source={require('./assets/search.png')}
+            style={styles.searchIcon}
+          />
+        </TouchableOpacity>
+      </View>
+      {isSearchVisible && (
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search movies..."
+            placeholderTextColor="#ccc"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearch}
+          />
+        </View>
+      )}
       <GenreFilter
         genres={genres}
         selectedGenres={selectedGenres}
@@ -188,19 +233,16 @@ const HomeScreen = () => {
             renderSectionHeader={renderSectionHeader}
             keyExtractor={item => item.id.toString()}
             onEndReached={({distanceFromEnd}) => {
-              if (distanceFromEnd > 0) {
+              if (distanceFromEnd > 0 && !loading) {
                 handleLoadMore('down');
               }
             }}
             onEndReachedThreshold={0.5}
             onScroll={({nativeEvent}) => {
-              if (nativeEvent.contentOffset.y <= 0) {
+              if (nativeEvent.contentOffset.y <= 0 && !loading) {
                 handleLoadMore('up');
               }
             }}
-            ListFooterComponent={
-              endOfList ? <Text style={styles.endText}>That's all</Text> : null
-            }
           />
         </View>
       )}
@@ -213,12 +255,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1d1d1d',
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 16,
+    marginHorizontal: 16,
+  },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#e50914',
-    marginVertical: 16,
-    marginLeft: 16,
+  },
+  searchIcon: {
+    width: 24,
+    height: 24,
+  },
+  searchContainer: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  searchInput: {
+    backgroundColor: '#333',
+    color: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   year: {
     fontSize: 24,
@@ -236,12 +298,6 @@ const styles = StyleSheet.create({
     margin: 8,
   },
   sectionList: {backgroundColor: '#000'},
-  endText: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    marginVertical: 20,
-  },
 });
 
 export default HomeScreen;
