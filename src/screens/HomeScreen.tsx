@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useMemo, useCallback} from 'react';
+import React, {useState, useEffect, useMemo, useCallback, useRef} from 'react';
 import {
   View,
   ActivityIndicator,
@@ -30,14 +30,18 @@ const HomeScreen = () => {
   const [currentYear, setCurrentYear] = useState(2012);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const loadingRef = useRef(false);
 
-  const loadMovies = async (append = false, year = 2012) => {
-    if (loading) {
+  const loadMovies = async (
+    append = false,
+    year = 2012,
+    genreQuery: string | null = null,
+  ) => {
+    if (loadingRef.current) {
       return;
     }
+    loadingRef.current = true;
     setLoading(true);
-    const genreQuery =
-      selectedGenres.length > 0 ? selectedGenres.join(',') : null;
     try {
       const movieData: ApiData = await fetchMovies(year, genreQuery);
       const moviesWithGenres = movieData.results.map(movie => ({
@@ -54,7 +58,7 @@ const HomeScreen = () => {
       const newSection = {year, data: sortedMoviesWithGenres};
 
       setSections(prevSections => {
-        const updatedSections = [...prevSections];
+        const updatedSections = append ? [...prevSections] : [];
         const existingSectionIndex = updatedSections.findIndex(
           section => section.year === year,
         );
@@ -75,22 +79,25 @@ const HomeScreen = () => {
               : [...newMovies, ...existingMovies],
           };
         } else {
-          if (sortedMoviesWithGenres.length > 0) {
-            updatedSections.push(newSection);
-          }
+          updatedSections.push(newSection);
         }
 
         return updatedSections.sort((a, b) => a.year - b.year);
       });
+
+      if (!append) {
+        setCurrentYear(year);
+      }
     } catch (error) {
       console.error('Error fetching movies:', error);
     }
     setLoading(false);
+    loadingRef.current = false;
   };
 
   const handleLoadMore = useCallback(
     (direction: string) => {
-      if (loading) {
+      if (loadingRef.current) {
         return;
       }
       const firstYear = sections.length > 0 ? sections[0].year : 2012;
@@ -102,11 +109,14 @@ const HomeScreen = () => {
         return;
       }
 
+      const genreQuery =
+        selectedGenres.length > 0 ? selectedGenres.join(',') : null;
+
+      loadMovies(true, newYear, genreQuery);
       setCurrentYear(newYear);
-      loadMovies(true, newYear);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sections, selectedGenres, loading],
+    [sections, selectedGenres],
   );
 
   const loadGenres = async () => {
@@ -124,6 +134,7 @@ const HomeScreen = () => {
       return;
     }
     setLoading(true);
+    loadingRef.current = true;
     try {
       const movieData: ApiData = await searchMovies(searchQuery);
       const moviesWithGenres = movieData.results.map(movie => ({
@@ -137,13 +148,12 @@ const HomeScreen = () => {
         (a, b) => b.popularity - a.popularity,
       );
 
-      setSections([
-        {year: sortedMoviesWithGenres.length, data: sortedMoviesWithGenres},
-      ]);
+      setSections([{year: 0, data: sortedMoviesWithGenres}]); // Use 0 to represent search results
     } catch (error) {
       console.error('Error searching movies:', error);
     }
     setLoading(false);
+    loadingRef.current = false;
   };
 
   useEffect(() => {
@@ -152,16 +162,21 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (genresLoaded) {
-      loadMovies(false, currentYear);
+      const genreQuery =
+        selectedGenres.length > 0 ? selectedGenres.join(',') : null;
+      loadMovies(false, currentYear, genreQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genresLoaded, selectedGenres]);
+  }, [genresLoaded, selectedGenres, currentYear]);
 
   const handleSelectGenre = (genreId: string) => {
-    setSelectedGenres(genreId === 'all' ? [] : [genreId]);
+    const newSelectedGenres = genreId === 'all' ? [] : [genreId];
+    setSelectedGenres(newSelectedGenres);
     setSections([]);
     setCurrentYear(2012);
-    loadMovies(false, 2012);
+    const genreQuery =
+      newSelectedGenres.length > 0 ? newSelectedGenres.join(',') : null;
+    loadMovies(false, 2012, genreQuery);
   };
 
   const renderItem = ({
@@ -189,7 +204,11 @@ const HomeScreen = () => {
     section,
   }: {
     section: SectionListData<MovieData>;
-  }) => <Text style={styles.year}>{section.year}</Text>;
+  }) => (
+    <Text style={styles.year}>
+      {section.year === 0 ? 'Search Results' : section.year}
+    </Text>
+  );
 
   const movieSections = useMemo(() => {
     return sections.filter(section => section.data.length > 0);
