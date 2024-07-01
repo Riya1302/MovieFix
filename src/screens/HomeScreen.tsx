@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useMemo, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useMemo, useCallback} from 'react';
 import {
   View,
   ActivityIndicator,
@@ -26,21 +26,16 @@ const HomeScreen = () => {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<MovieSections[]>([]);
-  const [genresLoaded, setGenresLoaded] = useState(false);
-  const [currentYear, setCurrentYear] = useState(2012);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const loadingRef = useRef(false);
+  const [genresLoaded, setGenresLoaded] = useState<boolean>(false);
+  const [currentYear, setCurrentYear] = useState<number>(2012);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false);
 
   const loadMovies = async (
     append = false,
     year = 2012,
     genreQuery: string | null = null,
   ) => {
-    if (loadingRef.current) {
-      return;
-    }
-    loadingRef.current = true;
     setLoading(true);
     try {
       const movieData: ApiData = await fetchMovies(year, genreQuery);
@@ -92,14 +87,10 @@ const HomeScreen = () => {
       console.error('Error fetching movies:', error);
     }
     setLoading(false);
-    loadingRef.current = false;
   };
 
   const handleLoadMore = useCallback(
     (direction: string) => {
-      if (loadingRef.current) {
-        return;
-      }
       const firstYear = sections.length > 0 ? sections[0].year : 2012;
       const lastYear =
         sections.length > 0 ? sections[sections.length - 1].year : 2012;
@@ -134,7 +125,6 @@ const HomeScreen = () => {
       return;
     }
     setLoading(true);
-    loadingRef.current = true;
     try {
       const movieData: ApiData = await searchMovies(searchQuery);
       const moviesWithGenres = movieData.results.map(movie => ({
@@ -153,7 +143,6 @@ const HomeScreen = () => {
       console.error('Error searching movies:', error);
     }
     setLoading(false);
-    loadingRef.current = false;
   };
 
   useEffect(() => {
